@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Хранилище 3D-моделей</title>
+  <style>
+    :root{
+      --bg:#0b0f17;
+      --panel:#0f172a;
+      --panel2:#111c35;
+      --text:#e6e8ee;
+      --muted:#9aa3b2;
+      --border:rgba(255,255,255,.10);
+      --shadow: 0 10px 35px rgba(0,0,0,.35);
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg); /* однотонный фон без подсветок */
+      color:var(--text);
+    }
+    .wrap{
+      max-width:1100px;
+      margin:0 auto;
+      padding:28px 16px 64px;
+    }
+    header{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:18px;
+    }
+    h1{
+      margin:0;
+      font-size:clamp(22px, 3vw, 34px);
+      letter-spacing:.2px;
+    }
+    .hint{
+      margin:0;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.35;
+      max-width:520px;
+    }
+
+    .accordion{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      margin-top:16px;
+    }
+    .cat{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), transparent 60%),
+                  var(--panel);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      overflow:hidden;
+      box-shadow: var(--shadow);
+    }
+    .cat__btn{
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:14px 16px;
+      background:transparent;
+      border:0;
+      color:var(--text);
+      cursor:pointer;
+      text-align:left;
+    }
+    .cat__left{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      min-width:0;
+    }
+    .cat__title{
+      font-size:16px;
+      font-weight:650;
+      line-height:1.2;
+    }
+    .cat__meta{
+      font-size:13px;
+      color:var(--muted);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .chev{
+      width:36px;
+      height:36px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      display:grid;
+      place-items:center;
+      flex:0 0 auto;
+    }
+    .chev svg{
+      transition: transform .18s ease;
+    }
+    .cat[aria-expanded="true"] .chev svg{
+      transform: rotate(180deg);
+    }
+
+    .cat__body{
+      display:none;
+      padding:0 16px 16px;
+      border-top:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.02), transparent 40%);
+    }
+    .cat[aria-expanded="true"] .cat__body{
+      display:block;
+    }
+
+    .grid{
+      margin-top:14px;
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap:12px;
+    }
+    @media (min-width: 640px){
+      .grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (min-width: 900px){
+      .grid{ grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    }
+
+    .card{
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.03);
+      border-radius:14px;
+      overflow:hidden;
+      transition: transform .12s ease, border-color .12s ease;
+    }
+    .card:hover{
+      transform: translateY(-2px);
+      border-color: rgba(46,125,255,.40);
+    }
+    .thumb{
+      width:100%;
+      aspect-ratio: 1 / 1; /* квадрат */
+      background: linear-gradient(135deg, rgba(46,125,255,.22), rgba(130,220,255,.10));
+      display:block;
+      position:relative;
+      overflow:hidden;
+    }
+    .thumb img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .card__footer{
+      padding:10px 10px 12px;
+    }
+    .model-link{
+      display:block;
+      color:var(--text);
+      text-decoration:none;
+      font-size:13px;
+      line-height:1.2;
+      font-weight:600;
+      word-break: break-word;
+    }
+    .model-link:hover{
+      text-decoration:underline;
+    }
+    .small{
+      margin-top:6px;
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    footer{
+      margin-top:22px;
+      color:var(--muted);
+      font-size:13px;
+    }
+    code.inline{
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>3D-модели для Roblox Studio</h1>
+        <p class="hint">Нажмите на категорию, чтобы увидеть доступные модели.</p>
+      </div>
+    </header>
+
+    <main id="app" class="accordion"></main>
+  </div>
+
+  <script>
+    // === ДАННЫЕ (редактируй тут) ===
+    // img: можешь вставить ссылку на превью (jpg/png/webp). Если не указывать — будет градиент.
+    const DATA = [
+      {
+        name: "Автомобили",
+        items: [
+          { title: "BMW M3 (E46)", url: "", img: "https://www.example.com" },
+          { title: "Toyota Supra MK4", url: "https://www.example1.com", img: "" },
+          { title: "Lamborghini Huracán", url: "https://www.example2.com", img: "" },
+          { title: "Nissan GT-R R35", url: "https://www.example3.com", img: "" },
+          { title: "Ford Mustang 1969", url: "https://www.example4.com", img: "" },
+          { title: "Mercedes G-Class", url: "https://www.example5.com", img: "" },
+          { title: "Audi RS7", url: "https://www.example6.com", img: "" },
+          { title: "Porsche 911", url: "https://www.example7.com", img: "" },
+          { title: "Tesla Model S", url: "https://www.example8.com", img: "" },
+          { title: "UAZ 469", url: "https://www.example9.com", img: "" },
+        ],
+      },
+      {
+        name: "Самолёты",
+        items: [
+          { title: "Boeing 737", url: "https://www.example.com", img: "" },
+          { title: "Airbus A320", url: "https://www.example1.com", img: "" },
+          { title: "Cessna 172", url: "https://www.example2.com", img: "" },
+          { title: "F-16 Fighting Falcon", url: "https://www.example3.com", img: "" },
+          { title: "Су-27", url: "https://www.example4.com", img: "" },
+          { title: "Ан-2", url: "https://www.example5.com", img: "" },
+          { title: "SR-71 Blackbird", url: "https://www.example6.com", img: "" },
+          { title: "ИЛ-76", url: "https://www.example7.com", img: "" },
+          { title: "MiG-29", url: "https://www.example8.com", img: "" },
+          { title: "Concorde", url: "https://www.example9.com", img: "" },
+        ],
+      },
+      {
+        name: "Вертолёты",
+        items: [
+          { title: "Вертолет №01", url: "https://drive.google.com/file/d/1YfgsGliFijp690mZ4b8DrlIGUQuZNfIC/view?usp=sharing", img: "./images/helicopter/helicopter1.png" },
+          { title: "Вертолет №02", url: "https://drive.google.com/file/d/1H90GvJtas4G0F1mB9w6gVR82-WMXmCU8/view?usp=sharing", img: "./images/helicopter/helicopter2.png" },
+          { title: "Вертолет №03", url: "https://drive.google.com/file/d/1iJ3Cdk8KDWkuGBQgFANb-AXyQNg_rNUy/view?usp=sharing", img: "./images/helicopter/helicopter3.png" },
+          { title: "Вертолет №04", url: "https://drive.google.com/file/d/1N2n6Xqr3Z9zUnvX4wahd-r7pny4-JWPO/view?usp=sharing", img: "./images/helicopter/helicopter4.png" },
+          { title: "Вертолет №05", url: "https://drive.google.com/file/d/1CRVVVHtm6VD1mRzrRw6zNz0UaUb0aS3N/view?usp=sharing", img: "./images/helicopter/helicopter5.png" },
+		  { title: "Вертолет №06", url: "https://www.example4.com", img: "./images/helicopter/helicopter6.png" },
+		  { title: "Вертолет №07", url: "https://www.example4.com", img: "./images/helicopter/helicopter7.png" },
+		  { title: "Вертолет №08", url: "https://www.example4.com", img: "./images/helicopter/helicopter8.png" },
+		  { title: "Вертолет №09", url: "https://www.example4.com", img: "./images/helicopter/helicopter9.png" },
+		  { title: "Вертолет №10", url: "https://www.example4.com", img: "./images/helicopter/helicopter10.png" }
+        ],
+      },
+      // Пример “и т.д.” — можешь удалять/добавлять:
+      {
+        name: "Окружение",
+        items: [
+          { title: "Городской квартал", url: "https://www.example.com", img: "" },
+          { title: "Лесная сцена", url: "https://www.example1.com", img: "" },
+          { title: "Склад / ангар", url: "https://www.example2.com", img: "" },
+          { title: "Комната (интерьер)", url: "https://www.example3.com", img: "" },
+          { title: "Дорога / трасса", url: "https://www.example4.com", img: "" },
+        ],
+      },
+    ];
+
+    // === РЕНДЕР ===
+    const app = document.getElementById("app");
+
+    function el(tag, attrs = {}, children = []) {
+      const node = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs)) {
+        if (k === "class") node.className = v;
+        else if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2), v);
+        else node.setAttribute(k, v);
+      }
+      for (const c of children) node.append(c);
+      return node;
+    }
+
+    function render() {
+      app.innerHTML = "";
+
+      DATA.forEach((cat, idx) => {
+        const count = cat.items?.length ?? 0;
+
+        const container = el("section", {
+          class: "cat",
+          "aria-expanded": "false",
+          "data-idx": String(idx),
+        });
+
+        const button = el("button", {
+          class: "cat__btn",
+          type: "button",
+          "aria-controls": `cat-body-${idx}`,
+          onclick: () => toggle(idx),
+        }, [
+          el("div", { class: "cat__left" }, [
+            el("div", { class: "cat__title" }, [document.createTextNode(cat.name)]),
+            el("div", { class: "cat__meta" }, [document.createTextNode(`Моделей: ${count}`)]),
+          ]),
+          el("div", { class: "chev", "aria-hidden": "true" }, [
+            (() => {
+              const ns = "http://www.w3.org/2000/svg";
+              const svg = document.createElementNS(ns, "svg");
+              svg.setAttribute("width", "18");
+              svg.setAttribute("height", "18");
+              svg.setAttribute("viewBox", "0 0 24 24");
+              svg.setAttribute("fill", "none");
+              svg.setAttribute("stroke", "currentColor");
+              svg.setAttribute("stroke-width", "2");
+              svg.setAttribute("stroke-linecap", "round");
+              svg.setAttribute("stroke-linejoin", "round");
+              const path = document.createElementNS(ns, "path");
+              path.setAttribute("d", "M6 9l6 6 6-6");
+              svg.appendChild(path);
+              return svg;
+            })()
+          ]),
+        ]);
+
+        const body = el("div", { class: "cat__body", id: `cat-body-${idx}` });
+
+        const grid = el("div", { class: "grid" });
+
+        cat.items.forEach((m) => {
+          const thumb = el("div", { class: "thumb" });
+
+          if (m.img) {
+            const img = el("img", { src: m.img, alt: m.title, loading: "lazy" });
+            thumb.appendChild(img);
+          }
+
+          const link = el("a", {
+            class: "model-link",
+            href: m.url,
+            target: "_blank",
+            rel: "noopener noreferrer",
+            title: m.url,
+          }, [document.createTextNode(m.title)]);
+
+          const card = el("article", { class: "card" }, [
+            thumb,
+            el("div", { class: "card__footer" }, [
+              link
+            ]),
+          ]);
+
+          grid.appendChild(card);
+        });
+
+        body.appendChild(grid);
+
+        container.appendChild(button);
+        container.appendChild(body);
+        app.appendChild(container);
+      });
+    }
+
+    // Открыта только одна категория (аккордеон)
+    function toggle(openIdx) {
+      const cats = app.querySelectorAll(".cat");
+      cats.forEach((c) => {
+        const idx = Number(c.getAttribute("data-idx"));
+        const isOpen = c.getAttribute("aria-expanded") === "true";
+        const next = idx === openIdx ? !isOpen : false;
+        c.setAttribute("aria-expanded", next ? "true" : "false");
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>
